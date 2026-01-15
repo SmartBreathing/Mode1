@@ -1,0 +1,718 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Guided Breathing Prototype</title>
+  <style>
+    :root{
+      --bg:#fbfbfd;
+      --text:#1f2937;
+      --muted:#6b7280;
+      --ring:#111827;
+      --target: rgba(17,24,39,0.14);
+      --targetActive: rgba(17,24,39,0.50);
+      --border: rgba(17,24,39,0.16);
+      --focus: rgba(59,130,246,0.35);
+
+      /* Overlay */
+      --overlay: rgba(17,24,39,0.55);
+      --panelBg: rgba(255,255,255,0.96);
+    }
+
+    body{
+      margin:0;
+      min-height:100vh;
+      display:grid;
+      place-items:center;
+      background:var(--bg);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+      color:var(--text);
+    }
+
+    .wrap{
+      width:min(560px, 92vw);
+      display:grid;
+      gap:14px;
+      justify-items:center;
+      text-align:center;
+      padding:22px 16px;
+      position:relative;
+    }
+
+    h1{
+      margin:0;
+      font-size:18px;
+      font-weight:650;
+      letter-spacing:0.2px;
+      text-align:center;
+    }
+
+    .sub{
+      margin:6px 0 0 0;
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.35;
+      max-width:60ch;
+      text-align:center;
+    }
+
+    /* Info button pinned to top-right of wrap */
+    .iconBtn{
+      position:absolute;
+      top:14px;
+      right:14px;
+
+      width:34px;
+      height:34px;
+      padding:0;
+      line-height:1;
+      font-size:16px;
+      box-sizing:border-box;
+
+      border-radius:999px;
+      border:1px solid rgba(17,24,39,0.12);
+      background:rgba(255,255,255,0.85);
+      color:var(--text);
+
+      display:grid;
+      place-items:center;
+      cursor:pointer;
+      user-select:none;
+      opacity:0.85;
+    }
+    .iconBtn:hover{ opacity:1; }
+    .iconBtn:focus-visible{
+      outline: 3px solid var(--focus);
+      outline-offset: 2px;
+      border-radius: 999px;
+    }
+
+    .stage{
+      width:360px;
+      height:360px;
+      max-width:84vw;
+      max-height:84vw;
+      position:relative;
+      display:grid;
+      place-items:center;
+    }
+
+    /* Cycle counter (top-right) */
+    .cycleCount{
+      position:absolute;
+      right:12px;
+      top:12px;
+      min-width:34px;
+      padding:8px 10px;
+      border:1px solid rgba(17,24,39,0.12);
+      background:rgba(255,255,255,0.85);
+      border-radius:999px;
+      font-size:13px;
+      font-weight:750;
+      color:var(--text);
+      text-align:center;
+      pointer-events:none;
+      font-variant-numeric: tabular-nums;
+      user-select:none;
+    }
+
+    /* Target rings (progress checkpoints) */
+    .targets{
+      position:absolute;
+      inset:0;
+      border-radius:50%;
+      pointer-events:none;
+      display:block;
+    }
+
+    .targetRing{
+      position:absolute;
+      left:50%;
+      top:50%;
+      border-radius:50%;
+      border:2px solid var(--target);
+      transform: translate(-50%, -50%);
+      box-sizing:border-box;
+      opacity: 0.25;
+      transition: opacity 400ms ease, border-color 400ms ease;
+    }
+
+    .targetRing.active{
+      border-color: var(--targetActive);
+      opacity: 0.85;
+    }
+
+    /* Circle + in-circle label wrapper */
+    .circleWrap{
+      position:relative;
+      width:180px;
+      height:180px;
+      display:grid;
+      place-items:center;
+    }
+
+    /* Breathing circle */
+    .circle{
+      width:180px;
+      height:180px;
+      border-radius:50%;
+      border:3px solid var(--ring);
+      box-sizing:border-box;
+      transform:scale(1);
+      will-change:transform, box-shadow;
+      background:transparent;
+    }
+
+    .phaseInCircle{
+      position:absolute;
+      inset:0;
+      display:grid;
+      place-items:center;
+      font-size:18px;
+      font-weight:800;
+      letter-spacing:0.2px;
+      color:var(--text);
+      pointer-events:none;
+      user-select:none;
+    }
+
+    .circle.pulse{
+      animation:pulse 520ms ease-out 1;
+    }
+    @keyframes pulse{
+      0%   { box-shadow:0 0 0 0 rgba(17,24,39,0.14); }
+      100% { box-shadow:0 0 0 18px rgba(17,24,39,0.00); }
+    }
+
+    .controls{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:center;
+      flex-wrap:wrap;
+      margin-top:10px;
+    }
+
+    button{
+      border:1px solid var(--border);
+      background:white;
+      color:var(--text);
+      border-radius:999px;
+      padding:10px 14px;
+      font-size:13px;
+      cursor:pointer;
+    }
+    button:active{ transform:translateY(1px); }
+    button:focus-visible, input:focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 2px;
+      border-radius: 999px;
+    }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 12px;
+      border:1px solid rgba(17,24,39,0.12);
+      border-radius:999px;
+      background:rgba(255,255,255,0.8);
+      font-size:12px;
+      color:var(--muted);
+      user-select:none;
+    }
+    label{ cursor:pointer; }
+    input[type="checkbox"]{ transform:translateY(1px); }
+
+    /* Compact Pace control */
+    .slider{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:6px 10px;
+      border:1px solid rgba(17,24,39,0.12);
+      border-radius:999px;
+      background:rgba(255,255,255,0.8);
+      font-size:12px;
+      color:var(--muted);
+    }
+    input[type="range"]{
+      width:160px;
+    }
+    .paceVal{
+      color:#fff;
+      background:rgba(17,24,39,0.9);
+      border-radius:999px;
+      padding:3px 8px;
+      font-size:12px;
+      min-width:24px;
+      text-align:center;
+      font-variant-numeric: tabular-nums;
+      user-select:none;
+    }
+
+    /* ====== Entry / Help overlays ====== */
+    .overlay{
+      position:fixed;
+      inset:0;
+      background:var(--overlay);
+      display:none;
+      place-items:center;
+      padding:18px;
+      z-index:50;
+    }
+    .overlay.show{
+      display:grid;
+    }
+    .panel{
+      position:relative;
+      width:min(520px, 92vw);
+      background:var(--panelBg);
+      border:1px solid rgba(17,24,39,0.12);
+      border-radius:18px;
+      padding:16px 16px 14px 16px;
+      text-align:left;
+      box-shadow: 0 20px 60px rgba(17,24,39,0.18);
+    }
+    .panel h2{
+      margin:0 0 8px 0;
+      font-size:16px;
+      font-weight:750;
+      letter-spacing:0.2px;
+    }
+    .panel p{
+      margin:0 0 10px 0;
+      color:var(--text);
+      font-size:13px;
+      line-height:1.4;
+    }
+    .panel .muted{
+      color:var(--muted);
+      font-size:12px;
+    }
+    .panel .rows{
+      display:grid;
+      gap:10px;
+      margin:10px 0 12px 0;
+    }
+    .panel .rowTitle{
+      font-weight:700;
+      font-size:13px;
+      margin:0 0 4px 0;
+    }
+    .panel ul{
+      margin:0;
+      padding-left:18px;
+      color:var(--text);
+      font-size:13px;
+      line-height:1.4;
+    }
+    .panelActions{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      margin-top:10px;
+    }
+    .ghostBtn{
+      background:transparent;
+    }
+    .closeX{
+      position:absolute;
+      top:10px;
+      right:10px;
+
+      width:30px;
+      height:30px;
+      padding:0;           
+      line-height:1;
+      font-size:16px;
+      box-sizing:border-box;
+
+      display:grid;
+      place-items:center;
+
+      border-radius:999px;
+      border:1px solid rgba(17,24,39,0.12);
+      background:rgba(255,255,255,0.9);
+      cursor:pointer;
+      opacity:0.85;
+    }
+    .closeX:hover{ opacity:1; }
+    .closeX:focus-visible{
+      outline: 3px solid var(--focus);
+      outline-offset: 2px;
+      border-radius: 999px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div>
+      <h1>Guided Breathing Prototype</h1>
+      <p class="sub">
+        <i>Expansion = inhale, contraction = exhale</i>
+      </p>
+    </div>
+
+    <button class="iconBtn" id="infoBtn" aria-label="Help" title="Help">?</button>
+
+    <div class="stage" aria-label="Breathing visualization">
+      <div class="cycleCount" id="cycleCount" aria-label="Completed cycles">0</div>
+
+      <div class="targets" id="targets" aria-hidden="true"></div>
+
+      <div class="circleWrap" aria-hidden="true">
+        <div class="circle" id="circle"></div>
+        <div class="phaseInCircle" id="phaseInCircle">Ready</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="startBtn">Start</button>
+      <button id="stopBtn" disabled>Stop</button>
+
+      <label class="pill">
+        <input id="showTargets" type="checkbox" checked />
+        Progress rings
+      </label>
+
+      <div class="slider" title="Guide inhale preset (0..5)">
+        Pace
+        <input id="pace" type="range" min="0" max="5" step="1" value="3" />
+        <span id="paceVal" class="paceVal">3</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Entry screen -->
+  <div class="overlay" id="entryOverlay" role="dialog" aria-modal="true" aria-labelledby="entryTitle">
+    <div class="panel">
+      <button class="closeX" id="entryCloseX" aria-label="Close">✕</button>
+      <h2 id="entryTitle">Breathing guide</h2>
+      <p>
+        This is a gentle visual guide.
+        <br/>
+        <b>Expansion</b> indicates inhalation and <b>contraction</b> indicates exhalation.
+      </p>
+      <p class="muted">Use the guide as a reference.</p>
+
+      <div class="panelActions">
+        <button id="entryStartBtn">Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help / Info -->
+  <div class="overlay" id="helpOverlay" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <div class="panel">
+      <button class="closeX" id="helpCloseX" aria-label="Close">✕</button>
+      <h2 id="helpTitle">How this guide works</h2>
+
+      <div class="rows">
+        <div>
+          <div class="rowTitle">Breathing phases</div>
+          <ul>
+            <li><b>Expansion</b> = inhale</li>
+            <li><b>Contraction</b> = exhale</li>
+          </ul>
+        </div>
+
+        <div>
+          <div class="rowTitle">Pace</div>
+          <ul>
+            <li>Pace selects the speed of the <b>visual guide</b> (0–5 presets).</li>
+            <li>Default is 3 (slow-paced reference with longer exhale; ~4–6).</li>
+            <li>You do <b>not</b> need to match the timing exactly.</li>
+          </ul>
+        </div>
+
+        <div>
+          <div class="rowTitle">Why slow-paced breathing</div>
+          <ul>
+            <li>A slower rhythm with a slightly longer exhale is commonly used to support relaxation and breathing awareness.</li>
+            <li>This prototype uses a gentle reference pattern; comfort comes first.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="panelActions">
+        <button class="ghostBtn" id="helpCloseBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const circle = document.getElementById("circle");
+    const phaseInCircle = document.getElementById("phaseInCircle");
+
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn  = document.getElementById("stopBtn");
+
+    const targetsWrap = document.getElementById("targets");
+    const showTargets = document.getElementById("showTargets");
+
+    const paceSlider  = document.getElementById("pace");
+    const paceVal     = document.getElementById("paceVal");
+    const cycleCountEl = document.getElementById("cycleCount");
+
+    // Entry / Help UI
+    const entryOverlay = document.getElementById("entryOverlay");
+    const entryStartBtn = document.getElementById("entryStartBtn");
+    const entryCloseX = document.getElementById("entryCloseX");
+
+    const helpOverlay = document.getElementById("helpOverlay");
+    const infoBtn = document.getElementById("infoBtn");
+    const helpCloseX = document.getElementById("helpCloseX");
+    const helpCloseBtn = document.getElementById("helpCloseBtn");
+
+    const STORAGE_KEY = "breathingPrototype_seenEntry_v1";
+    const FORCE_ENTRY_EVERY_LOAD = true; // set false when you want "once" behavior
+
+    function openOverlay(el){
+      el.classList.add("show");
+      const focusable = el.querySelector("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])");
+      if (focusable) focusable.focus();
+    }
+    function closeOverlay(el){
+      el.classList.remove("show");
+    }
+    function overlayBackdropClose(e, el){
+      if (e.target === el) closeOverlay(el);
+    }
+
+    // Show entry screen 
+    (function initEntry(){
+      const seen = localStorage.getItem(STORAGE_KEY) === "1";
+      if (FORCE_ENTRY_EVERY_LOAD || !seen){
+        openOverlay(entryOverlay);
+      }
+    })();
+
+    entryStartBtn.addEventListener("click", () => {
+      localStorage.setItem(STORAGE_KEY, "1");
+      closeOverlay(entryOverlay);
+      startBtn.focus(); // do not auto-start
+    });
+
+    entryCloseX.addEventListener("click", () => {
+      localStorage.setItem(STORAGE_KEY, "1");
+      closeOverlay(entryOverlay);
+    });
+
+    entryOverlay.addEventListener("mousedown", (e) => overlayBackdropClose(e, entryOverlay));
+
+    // Help panel
+    infoBtn.addEventListener("click", () => openOverlay(helpOverlay));
+    helpCloseX.addEventListener("click", () => closeOverlay(helpOverlay));
+    helpCloseBtn.addEventListener("click", () => closeOverlay(helpOverlay));
+    helpOverlay.addEventListener("mousedown", (e) => overlayBackdropClose(e, helpOverlay));
+
+    // Close overlays on Escape
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      if (entryOverlay.classList.contains("show")) closeOverlay(entryOverlay);
+      if (helpOverlay.classList.contains("show")) closeOverlay(helpOverlay);
+    });
+
+    // UX / protocol parameters
+    const exhaleRatio = 1.5;
+    const sessionMs   = 60_000;
+
+    // Scale range
+    const minScale = 0.78;
+    const maxScale = 1.48;
+    const baseCirclePx = 180;
+
+    function easeInOut(t){
+      return 0.5 - 0.5 * Math.cos(Math.PI * t);
+    }
+
+    function setPhaseUI(label){ phaseInCircle.textContent = label; }
+    function setScale(s){ circle.style.transform = `scale(${s.toFixed(4)})`; }
+
+    function scaleToRingDiameter(scale){
+      return baseCirclePx * scale;
+    }
+
+    // Rings
+    const inhaleRingsN = 4;
+    const exhaleRingsN = 6;
+
+    function targetScales(phase){
+      const n = (phase === "inhale") ? inhaleRingsN : exhaleRingsN;
+      const scales = [];
+      for (let k = 1; k <= n; k++){
+        const t = k / n;
+        if (phase === "inhale") {
+          scales.push(minScale + (maxScale - minScale) * t);
+        } else {
+          scales.push(maxScale - (maxScale - minScale) * t);
+        }
+      }
+      return scales;
+    }
+
+    let rings = [];
+    function buildRingsForPhase(phase){
+      targetsWrap.innerHTML = "";
+      rings = [];
+      for (const s of targetScales(phase)){
+        const el = document.createElement("div");
+        el.className = "targetRing";
+        const d = scaleToRingDiameter(s);
+        el.style.width  = `${d.toFixed(1)}px`;
+        el.style.height = `${d.toFixed(1)}px`;
+        targetsWrap.appendChild(el);
+        rings.push({ el, targetScale: s });
+      }
+    }
+
+    function updateRingActivation(currentScale, phase){
+      const reached = (phase === "inhale")
+        ? (t) => currentScale >= t - 1e-6
+        : (t) => currentScale <= t + 1e-6;
+
+      for (const r of rings){
+        r.el.classList.toggle("active", reached(r.targetScale));
+      }
+    }
+
+    showTargets.addEventListener("change", () => {
+      targetsWrap.style.display = showTargets.checked ? "block" : "none";
+    });
+
+    // Pace mapping: discrete presets (0..5) -> inhale seconds
+    const inhaleAnchorsSec = [2.5, 3.0, 3.5, 4.0, 4.5, 5.0];
+
+    function inhaleSecFromSlider(){
+      const idx = Number(paceSlider.value);
+      return inhaleAnchorsSec[Math.max(0, Math.min(5, idx))];
+    }
+
+    function exhaleSecFromInhale(inhaleSec){
+      return inhaleSec * exhaleRatio;
+    }
+
+    function updatePaceLabel(){
+      paceVal.textContent = String(paceSlider.value);
+    }
+    paceSlider.addEventListener("input", updatePaceLabel);
+
+    // Run state
+    let running = false;
+    let rafId = null;
+
+    let state = "idle";
+    let stateStart = 0;
+    let cyclesDone = 0;
+
+    let sessionStart = 0;
+    let sessionEnding = false;
+
+    function step(now){
+      if (!running) return;
+
+      if (!sessionEnding && (now - sessionStart >= sessionMs)){
+        sessionEnding = true;
+      }
+
+      const inhaleSec = inhaleSecFromSlider();
+      const exhaleSec = exhaleSecFromInhale(inhaleSec);
+
+      if (state === "inhale"){
+        const t = Math.min(1, (now - stateStart) / (inhaleSec * 1000));
+        const e = easeInOut(t);
+        const currentScale = minScale + (maxScale - minScale) * e;
+        setScale(currentScale);
+        updateRingActivation(currentScale, "inhale");
+
+        if (t >= 1){
+          state = "exhale";
+          stateStart = now;
+          setPhaseUI("Exhale");
+
+          buildRingsForPhase("exhale");
+          updateRingActivation(maxScale, "exhale");
+        }
+
+      } else if (state === "exhale"){
+        const t = Math.min(1, (now - stateStart) / (exhaleSec * 1000));
+        const e = easeInOut(t);
+        const currentScale = maxScale - (maxScale - minScale) * e;
+        setScale(currentScale);
+        updateRingActivation(currentScale, "exhale");
+
+        if (t >= 1){
+          cyclesDone += 1;
+          cycleCountEl.textContent = String(cyclesDone);
+
+          if (sessionEnding){
+            stop(true);
+            return;
+          }
+
+          state = "inhale";
+          stateStart = now;
+          setPhaseUI("Inhale");
+
+          buildRingsForPhase("inhale");
+          updateRingActivation(minScale, "inhale");
+        }
+      }
+
+      rafId = requestAnimationFrame(step);
+    }
+
+    function start(){
+      if (entryOverlay.classList.contains("show") || helpOverlay.classList.contains("show")) return;
+      if (running) return;
+
+      running = true;
+      cyclesDone = 0;
+      cycleCountEl.textContent = "0";
+      sessionEnding = false;
+
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+
+      const now = performance.now();
+      sessionStart = now;
+
+      state = "inhale";
+      stateStart = now;
+
+      setPhaseUI("Inhale");
+
+      buildRingsForPhase("inhale");
+      updateRingActivation(minScale, "inhale");
+
+      targetsWrap.style.display = showTargets.checked ? "block" : "none";
+      rafId = requestAnimationFrame(step);
+    }
+
+    function stop(completed=false){
+      running = false;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = null;
+
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+
+      state = "idle";
+      setScale(minScale);
+      targetsWrap.innerHTML = "";
+
+      setPhaseUI(completed ? "Done" : "Ready");
+    }
+
+    startBtn.addEventListener("click", start);
+    stopBtn.addEventListener("click", () => stop(false));
+
+    // Init
+    setScale(minScale);
+    updatePaceLabel();
+    targetsWrap.style.display = showTargets.checked ? "block" : "none";
+  </script>
+</body>
+</html>
