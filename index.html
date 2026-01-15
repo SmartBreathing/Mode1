@@ -20,6 +20,11 @@
       --panelBg: rgba(255,255,255,0.96);
     }
 
+    /* ✅ Mobile overflow guard (prevents modal clipping/side scroll) */
+    html, body{
+      overflow-x: hidden;
+    }
+
     body{
       margin:0;
       min-height:100vh;
@@ -265,9 +270,13 @@
     .overlay.show{
       display:grid;
     }
+
+    /* ✅ Responsive modal sizing: avoid width overflow on mobile */
     .panel{
       position:relative;
-      width:min(520px, 92vw);
+      width:100%;
+      max-width:520px;
+
       background:var(--panelBg);
       border:1px solid rgba(17,24,39,0.12);
       border-radius:18px;
@@ -324,7 +333,7 @@
 
       width:30px;
       height:30px;
-      padding:0;           
+      padding:0;
       line-height:1;
       font-size:16px;
       box-sizing:border-box;
@@ -481,7 +490,7 @@
       if (e.target === el) closeOverlay(el);
     }
 
-    // Show entry screen 
+    // Show entry screen
     (function initEntry(){
       const seen = localStorage.getItem(STORAGE_KEY) === "1";
       if (FORCE_ENTRY_EVERY_LOAD || !seen){
