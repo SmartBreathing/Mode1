@@ -511,7 +511,7 @@
 
     // UX / protocol parameters
     const exhaleRatio = 1.5;
-    const sessionMs   = 60_000;
+    const sessionMs   = 60_000; // ✅ time is primary: fixed 1 minute session
 
     // Scale range
     const minScale = 0.78;
@@ -588,12 +588,13 @@
       return inhaleSec * exhaleRatio;
     }
 
-    // ✅ NEW: compute planned cycles from durations (no hardcoded array)
+    // Estimated total cycles for UI only (time is primary; cycles are informative)
     function totalCyclesForSelectedPace(){
       const inhaleSec = inhaleSecFromSlider();
       const exhaleSec = exhaleSecFromInhale(inhaleSec);
-      const cycleSec  = inhaleSec + exhaleSec; // = inhaleSec*(1+exhaleRatio)
-      return Math.max(1, Math.floor(60 / cycleSec));
+      const cycleSec  = inhaleSec + exhaleSec;
+      const totalSec  = sessionMs / 1000;
+      return Math.max(1, Math.round(totalSec / cycleSec)); // ✅ estimate
     }
 
     function setCycleProgress(done, total){
@@ -604,7 +605,7 @@
       paceVal.textContent = String(paceSlider.value);
     }
 
-    // Update UI when pace changes (before session): show 0/total
+    // Update UI when pace changes (before session): show 0/estimated total
     paceSlider.addEventListener("input", () => {
       updatePaceLabel();
       if (!running){
@@ -628,6 +629,7 @@
     function step(now){
       if (!running) return;
 
+      // ✅ time is primary: stop exactly after sessionMs
       if (!sessionEnding && (now - sessionStart >= sessionMs)){
         sessionEnding = true;
       }
@@ -662,8 +664,8 @@
           cyclesDone += 1;
           setCycleProgress(cyclesDone, totalCyclesPlanned);
 
-          // Stop either by time OR by reaching planned cycles (whichever comes first)
-          if (cyclesDone >= totalCyclesPlanned || sessionEnding){
+          // ✅ stop ONLY by time (not by cycles)
+          if (sessionEnding){
             stop(true);
             return;
           }
@@ -685,6 +687,10 @@
       if (running) return;
 
       running = true;
+
+      // ✅ Always reset visual state before starting inhale
+      setScale(minScale);
+
       cyclesDone = 0;
 
       totalCyclesPlanned = totalCyclesForSelectedPace();
