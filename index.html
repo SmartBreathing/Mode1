@@ -20,10 +20,7 @@
       --panelBg: rgba(255,255,255,0.96);
     }
 
-    /* ✅ Mobile overflow guard (prevents modal clipping/side scroll) */
-    html, body{
-      overflow-x: hidden;
-    }
+    html, body{ overflow-x:hidden; }
 
     body{
       margin:0;
@@ -67,19 +64,16 @@
       position:absolute;
       top:14px;
       right:14px;
-
       width:34px;
       height:34px;
       padding:0;
       line-height:1;
       font-size:16px;
       box-sizing:border-box;
-
       border-radius:999px;
       border:1px solid rgba(17,24,39,0.12);
       background:rgba(255,255,255,0.85);
       color:var(--text);
-
       display:grid;
       place-items:center;
       cursor:pointer;
@@ -101,25 +95,6 @@
       position:relative;
       display:grid;
       place-items:center;
-    }
-
-    /* Cycle counter (top-right) */
-    .cycleCount{
-      position:absolute;
-      right:12px;
-      top:12px;
-      min-width:34px;
-      padding:8px 10px;
-      border:1px solid rgba(17,24,39,0.12);
-      background:rgba(255,255,255,0.85);
-      border-radius:999px;
-      font-size:13px;
-      font-weight:750;
-      color:var(--text);
-      text-align:center;
-      pointer-events:none;
-      font-variant-numeric: tabular-nums;
-      user-select:none;
     }
 
     /* Target rings (progress checkpoints) */
@@ -169,17 +144,33 @@
       background:transparent;
     }
 
-    .phaseInCircle{
+    /* Center text stack inside circle */
+    .centerText{
       position:absolute;
       inset:0;
-      display:grid;
-      place-items:center;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:6px;
+      pointer-events:none;
+      user-select:none;
+    }
+
+    .phaseInCircle{
       font-size:18px;
       font-weight:800;
       letter-spacing:0.2px;
       color:var(--text);
-      pointer-events:none;
-      user-select:none;
+      line-height:1.1;
+    }
+
+    .cycleProgress{
+      font-size:13px;
+      font-weight:750;
+      color:var(--muted);
+      font-variant-numeric: tabular-nums;
+      line-height:1;
     }
 
     .circle.pulse{
@@ -271,12 +262,10 @@
       display:grid;
     }
 
-    /* ✅ Responsive modal sizing: avoid width overflow on mobile */
     .panel{
       position:relative;
       width:100%;
       max-width:520px;
-
       background:var(--panelBg);
       border:1px solid rgba(17,24,39,0.12);
       border-radius:18px;
@@ -330,17 +319,14 @@
       position:absolute;
       top:10px;
       right:10px;
-
       width:30px;
       height:30px;
       padding:0;
       line-height:1;
       font-size:16px;
       box-sizing:border-box;
-
       display:grid;
       place-items:center;
-
       border-radius:999px;
       border:1px solid rgba(17,24,39,0.12);
       background:rgba(255,255,255,0.9);
@@ -360,20 +346,22 @@
     <div>
       <h1>Guided Breathing Prototype</h1>
       <p class="sub">
-        <i>Expansion = inhale, contraction = exhale</i>
+        <i>Follow the circle. Expansion = inhale, contraction = exhale</i>
       </p>
     </div>
 
     <button class="iconBtn" id="infoBtn" aria-label="Help" title="Help">?</button>
 
     <div class="stage" aria-label="Breathing visualization">
-      <div class="cycleCount" id="cycleCount" aria-label="Completed cycles">0</div>
-
       <div class="targets" id="targets" aria-hidden="true"></div>
 
       <div class="circleWrap" aria-hidden="true">
         <div class="circle" id="circle"></div>
-        <div class="phaseInCircle" id="phaseInCircle">Ready</div>
+
+        <div class="centerText">
+          <div class="phaseInCircle" id="phaseInCircle">Ready</div>
+          <div class="cycleProgress" id="cycleProgress">0/0</div>
+        </div>
       </div>
     </div>
 
@@ -454,6 +442,7 @@
   <script>
     const circle = document.getElementById("circle");
     const phaseInCircle = document.getElementById("phaseInCircle");
+    const cycleProgressEl = document.getElementById("cycleProgress");
 
     const startBtn = document.getElementById("startBtn");
     const stopBtn  = document.getElementById("stopBtn");
@@ -463,7 +452,6 @@
 
     const paceSlider  = document.getElementById("pace");
     const paceVal     = document.getElementById("paceVal");
-    const cycleCountEl = document.getElementById("cycleCount");
 
     // Entry / Help UI
     const entryOverlay = document.getElementById("entryOverlay");
@@ -490,7 +478,6 @@
       if (e.target === el) closeOverlay(el);
     }
 
-    // Show entry screen
     (function initEntry(){
       const seen = localStorage.getItem(STORAGE_KEY) === "1";
       if (FORCE_ENTRY_EVERY_LOAD || !seen){
@@ -501,7 +488,7 @@
     entryStartBtn.addEventListener("click", () => {
       localStorage.setItem(STORAGE_KEY, "1");
       closeOverlay(entryOverlay);
-      startBtn.focus(); // do not auto-start
+      startBtn.focus();
     });
 
     entryCloseX.addEventListener("click", () => {
@@ -511,13 +498,11 @@
 
     entryOverlay.addEventListener("mousedown", (e) => overlayBackdropClose(e, entryOverlay));
 
-    // Help panel
     infoBtn.addEventListener("click", () => openOverlay(helpOverlay));
     helpCloseX.addEventListener("click", () => closeOverlay(helpOverlay));
     helpCloseBtn.addEventListener("click", () => closeOverlay(helpOverlay));
     helpOverlay.addEventListener("mousedown", (e) => overlayBackdropClose(e, helpOverlay));
 
-    // Close overlays on Escape
     document.addEventListener("keydown", (e) => {
       if (e.key !== "Escape") return;
       if (entryOverlay.classList.contains("show")) closeOverlay(entryOverlay);
@@ -603,10 +588,29 @@
       return inhaleSec * exhaleRatio;
     }
 
+    // ✅ NEW: compute planned cycles from durations (no hardcoded array)
+    function totalCyclesForSelectedPace(){
+      const inhaleSec = inhaleSecFromSlider();
+      const exhaleSec = exhaleSecFromInhale(inhaleSec);
+      const cycleSec  = inhaleSec + exhaleSec; // = inhaleSec*(1+exhaleRatio)
+      return Math.max(1, Math.floor(60 / cycleSec));
+    }
+
+    function setCycleProgress(done, total){
+      cycleProgressEl.textContent = `${done}/${total}`;
+    }
+
     function updatePaceLabel(){
       paceVal.textContent = String(paceSlider.value);
     }
-    paceSlider.addEventListener("input", updatePaceLabel);
+
+    // Update UI when pace changes (before session): show 0/total
+    paceSlider.addEventListener("input", () => {
+      updatePaceLabel();
+      if (!running){
+        setCycleProgress(0, totalCyclesForSelectedPace());
+      }
+    });
 
     // Run state
     let running = false;
@@ -614,7 +618,9 @@
 
     let state = "idle";
     let stateStart = 0;
+
     let cyclesDone = 0;
+    let totalCyclesPlanned = totalCyclesForSelectedPace();
 
     let sessionStart = 0;
     let sessionEnding = false;
@@ -654,9 +660,10 @@
 
         if (t >= 1){
           cyclesDone += 1;
-          cycleCountEl.textContent = String(cyclesDone);
+          setCycleProgress(cyclesDone, totalCyclesPlanned);
 
-          if (sessionEnding){
+          // Stop either by time OR by reaching planned cycles (whichever comes first)
+          if (cyclesDone >= totalCyclesPlanned || sessionEnding){
             stop(true);
             return;
           }
@@ -679,7 +686,10 @@
 
       running = true;
       cyclesDone = 0;
-      cycleCountEl.textContent = "0";
+
+      totalCyclesPlanned = totalCyclesForSelectedPace();
+      setCycleProgress(0, totalCyclesPlanned);
+
       sessionEnding = false;
 
       startBtn.disabled = true;
@@ -712,6 +722,11 @@
       setScale(minScale);
       targetsWrap.innerHTML = "";
 
+      if (!completed){
+        totalCyclesPlanned = totalCyclesForSelectedPace();
+        setCycleProgress(0, totalCyclesPlanned);
+      }
+
       setPhaseUI(completed ? "Done" : "Ready");
     }
 
@@ -722,6 +737,7 @@
     setScale(minScale);
     updatePaceLabel();
     targetsWrap.style.display = showTargets.checked ? "block" : "none";
+    setCycleProgress(0, totalCyclesForSelectedPace());
   </script>
 </body>
 </html>
